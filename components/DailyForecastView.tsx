@@ -73,14 +73,24 @@ const DailyForecastView: React.FC<DailyForecastViewProps> = ({ data }) => {
                     const barWidth = ((dayHigh - dayLow) / tempRange.weekRange) * 100;
                     const barOffset = ((dayLow - tempRange.weekMin) / tempRange.weekRange) * 100;
                     
+                    const windSpeed = Math.round(day.wind_gusts_10m ?? 0);
+                    const precipMm = totalPrecip.toFixed(2);
+                    const dayName = new Date(day.time + 'Z').toLocaleDateString('en-US', { weekday: 'short' });
+                    const dataLabel = `${windSpeed} kts | ${precipMm}mm`;
+
                     return (
                         <div key={index} className="flex items-center gap-4 p-2 rounded-lg transition-colors hover:bg-white/5">
-                            <span className="w-10 text-lg font-bold text-gray-300 text-left">
-                                {new Date(day.time + 'Z').toLocaleDateString('en-US', { weekday: 'short' })}
-                            </span>
+                            <div className="w-16 text-left">
+                                <div className="text-lg font-bold text-gray-300">
+                                    {dayName}
+                                </div>
+                                <div className="text-xs text-gray-500 font-mono mt-0.5">
+                                    {dataLabel}
+                                </div>
+                            </div>
 
                             <span className={`w-8 text-xl font-bold text-center ${getWindGustColor(day.wind_gusts_10m ?? 0)}`}>
-                                {Math.round(day.wind_gusts_10m ?? 0)}
+                                {windSpeed}
                             </span>
 
                             <div className="flex items-center gap-2">
@@ -88,7 +98,7 @@ const DailyForecastView: React.FC<DailyForecastViewProps> = ({ data }) => {
                                     <WeatherIcon />
                                 </div>
                                 <span className="w-12 text-md text-cyan-300 font-mono text-left">
-                                    {totalPrecip.toFixed(2)}
+                                    {precipMm}
                                 </span>
                             </div>
 
@@ -96,12 +106,49 @@ const DailyForecastView: React.FC<DailyForecastViewProps> = ({ data }) => {
                                 {Math.round(dayLow)}°
                             </span>
 
-                            <div className="flex-1 h-2 bg-gray-700/50 rounded-full">
+                            <div className="flex-1 h-3 bg-gradient-to-r from-gray-800/60 via-gray-700/40 to-gray-800/60 rounded-full relative shadow-inner border border-gray-600/30">
+                                {/* Temperature gradient background */}
                                 <div 
-                                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
+                                    className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-cyan-400/30 to-orange-400/20 rounded-full opacity-60"
                                     style={{
-                                        width: `${barWidth}%`,
+                                        background: `linear-gradient(90deg, 
+                                            rgba(59, 130, 246, 0.2) 0%, 
+                                            rgba(34, 197, 94, 0.3) 25%, 
+                                            rgba(251, 191, 36, 0.3) 50%, 
+                                            rgba(239, 68, 68, 0.2) 100%)`
+                                    }}
+                                ></div>
+                                
+                                {/* Temperature range bar */}
+                                <div 
+                                    className="absolute h-full bg-gradient-to-r from-cyan-400/80 via-emerald-400/90 to-blue-500/80 rounded-full shadow-md transition-all duration-300 hover:shadow-lg"
+                                    style={{
+                                        width: `${Math.max(barWidth, 2)}%`,
                                         marginLeft: `${barOffset}%`,
+                                        boxShadow: '0 0 8px rgba(34, 197, 94, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.2)'
+                                    }}
+                                >
+                                    {/* Inner highlight */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-white/10 rounded-full"></div>
+                                </div>
+                                
+                                {/* Low temperature marker */}
+                                <div 
+                                    className="absolute w-3 h-3 bg-gradient-to-br from-blue-300 to-cyan-500 rounded-full border border-white/60 shadow-sm"
+                                    style={{
+                                        left: `${barOffset}%`,
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                    }}
+                                ></div>
+                                
+                                {/* High temperature marker */}
+                                <div 
+                                    className="absolute w-3 h-3 bg-gradient-to-br from-orange-300 to-red-400 rounded-full border border-white/60 shadow-sm"
+                                    style={{
+                                        left: `${barOffset + barWidth}%`,
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)',
                                     }}
                                 ></div>
                             </div>
