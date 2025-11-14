@@ -73,32 +73,22 @@ const DailyForecastView: React.FC<DailyForecastViewProps> = ({ data }) => {
                     const barWidth = ((dayHigh - dayLow) / tempRange.weekRange) * 100;
                     const barOffset = ((dayLow - tempRange.weekMin) / tempRange.weekRange) * 100;
                     
-                    const windSpeed = Math.round(day.wind_gusts_10m ?? 0);
-                    const precipMm = totalPrecip.toFixed(2);
-                    const dayName = new Date(day.time + 'Z').toLocaleDateString('en-US', { weekday: 'short' });
-                    const dataLabel = `${windSpeed} kts | ${precipMm}mm`;
-
                     return (
                         <div key={index} className="flex items-center gap-4 p-2 rounded-lg transition-colors hover:bg-white/5">
-                            <div className="w-16 text-left">
-                                <div className="text-lg font-bold text-gray-300">
-                                    {dayName}
-                                </div>
-                                <div className="text-xs text-gray-500 font-mono mt-0.5">
-                                    {dataLabel}
-                                </div>
-                            </div>
+                            <span className="w-10 text-lg font-bold text-gray-300 text-left">
+                                {new Date(day.time + 'Z').toLocaleDateString('en-US', { weekday: 'short' })}
+                            </span>
 
-                            <span className={`w-8 text-xl font-bold text-center ${getWindGustColor(day.wind_gusts_10m ?? 0)}`}>
-                                {windSpeed}
+                            <span className={`w-12 text-xl font-bold text-center ${getWindGustColor(day.wind_gusts_10m ?? 0)}`}>
+                                {Math.round(day.wind_gusts_10m ?? 0)} kts
                             </span>
 
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8">
                                     <WeatherIcon />
                                 </div>
-                                <span className="w-12 text-md text-cyan-300 font-mono text-left">
-                                    {precipMm}
+                                <span className="w-16 text-md text-cyan-300 font-mono text-left">
+                                    {totalPrecip.toFixed(2)}mm
                                 </span>
                             </div>
 
