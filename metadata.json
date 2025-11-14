@@ -1,0 +1,5 @@
+{
+  "name": "Climatus",
+  "description": "Climatus is a robust application that pulls and visually compares weather forecasts from various global and regional models using the Open-Meteo API.",
+  "requestFramePermissions": []
+}
