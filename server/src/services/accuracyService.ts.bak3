@@ -1,4 +1,4 @@
-import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty } from './dbService.js';
+import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty } from './mockDbService.js';
 import { fetchPastWeather, fetchRawModelRunsForAccuracy } from './openMeteoService.js';
 import { ACCURACY_LOCATIONS, LAST_ACCURACY_CHECK_KEY, MODELS, TRACKABLE_METRICS, ACCURACY_FIRST_RUN_KEY, ACCURACY_MAX_FORECAST_HOURS, ACCURACY_STALE_FORECAST_HOURS } from '../constants.js';
 import { PendingForecast, AccuracyInterval, ActualWeatherRecord, HistoricalForecastRecord, OpenMeteoModelResponse } from '../types.js';
@@ -250,13 +250,13 @@ const fullUpdateCycle = async () => {
 
 const initialSetup = async () => {
     console.log("[Accuracy] Performing initial setup check...");
-    const firstRunTimestamp = localStorage localStorage.getItemlocalStorage.getItem localStorage.getItem || (() => null)(ACCURACY_FIRST_RUN_KEY);
+    const firstRunTimestamp = null; // Skip localStorage check
     const storesAreEmpty = await areAccuracyStoresEmpty();
 
     if (!firstRunTimestamp || storesAreEmpty) {
         console.log("[Accuracy] First run detected or database is empty. Seeding data...");
         await fullUpdateCycle();
-        localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
+        // Skip localStorage.setItem
     } else {
         console.log("[Accuracy] Existing data found. Proceeding with normal hourly check.");
     }

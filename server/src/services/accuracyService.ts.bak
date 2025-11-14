@@ -250,13 +250,13 @@ const fullUpdateCycle = async () => {
 
 const initialSetup = async () => {
     console.log("[Accuracy] Performing initial setup check...");
-    const firstRunTimestamp = localStorage localStorage.getItemlocalStorage.getItem localStorage.getItem || (() => null)(ACCURACY_FIRST_RUN_KEY);
+    const firstRunTimestamp = localStorage.getItem(ACCURACY_FIRST_RUN_KEY);
     const storesAreEmpty = await areAccuracyStoresEmpty();
 
     if (!firstRunTimestamp || storesAreEmpty) {
         console.log("[Accuracy] First run detected or database is empty. Seeding data...");
         await fullUpdateCycle();
-        localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
+        localStorage.setItem(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
     } else {
         console.log("[Accuracy] Existing data found. Proceeding with normal hourly check.");
     }
@@ -278,13 +278,13 @@ export const checkAndRunHourlyUpdate = async () => {
         
         await initialSetup(); 
 
-        const lastCheck = localStorage localStorage.getItemlocalStorage.getItem localStorage.getItem || (() => null)(LAST_ACCURACY_CHECK_KEY);
+        const lastCheck = localStorage.getItem(LAST_ACCURACY_CHECK_KEY);
         const now = Date.now();
         const oneHour = 3600 * 1000;
 
         if (!lastCheck || (now - parseInt(lastCheck, 10)) > oneHour) {
             await fullUpdateCycle();
-            localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(LAST_ACCURACY_CHECK_KEY, now.toString());
+            localStorage.setItem(LAST_ACCURACY_CHECK_KEY, now.toString());
         } else {
             console.log('[Accuracy] Less than an hour since last full update. Skipping.');
         }
@@ -299,7 +299,7 @@ export const runFullAccuracyCycleNow = async () => {
     try {
         await initDB();
         await fullUpdateCycle();
-        localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(LAST_ACCURACY_CHECK_KEY, Date.now().toString());
+        localStorage.setItem(LAST_ACCURACY_CHECK_KEY, Date.now().toString());
         console.log('[Accuracy] Manual update cycle completed successfully.');
     } catch (err) {
         console.error('[Accuracy] Manual full update cycle failed:', err);
