@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AccuracyScore, AccuracyInterval, Metric } from '../types';
 import { getAccuracyScores, initDB, clearAccuracyData } from '../services/dbService';
-import { runFullAccuracyCycleNow } from '../services/accuracyService';
+import { runFullAccuracyCycleNow } from '../services/apiService';
 import { TRACKABLE_METRICS, ACCURACY_LOCATIONS, ACCURACY_FIRST_RUN_KEY, LAST_ACCURACY_CHECK_KEY } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
 import AccuracyLeaderboard from './AccuracyLeaderboard';

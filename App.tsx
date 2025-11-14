@@ -1,20 +1,18 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchForecasts, searchLocations, fetchCurrentWeather, fetchPastWeather } from './services/openMeteoService';
+import { fetchForecasts, searchLocations, fetchCurrentWeather, fetchPastWeather, generateForecastSummary, checkAndRunHourlyUpdate, runFullAccuracyCycleNow } from './services/apiService';
 import { ProcessedForecasts, Metric, ForecastView, Location, ModelError, CurrentWeather as CurrentWeatherType, ProcessedHourlyData } from './types';
 import { METRICS, DEFAULT_LOCATION, LAST_ACCURACY_CHECK_KEY, MODELS } from './constants';
 import Header from './components/Header';
 import ComparisonChart from './components/ComparisonChart';
 import LoadingSpinner from './components/LoadingSpinner';
 import AccuracyTracker from './components/AccuracyTracker';
-import { checkAndRunHourlyUpdate, runFullAccuracyCycleNow } from './services/accuracyService';
 import ModelErrorLog from './components/ModelErrorLog';
 import CurrentWeather from './components/CurrentWeather';
 import SearchResultsDropdown from './components/SearchResultsDropdown';
 import DailyForecastInfo from './components/DailyForecastInfo';
 import AISummary from './components/AISummary';
-import { generateForecastSummary } from './services/geminiService';
 import ForecastCard from './components/ForecastCard';
 import ErrorBoundary from './components/ErrorBoundary';
 import DailyForecastView from './components/DailyForecastView';
@@ -60,8 +58,7 @@ const App: React.FC = () => {
   const [precipLast6h, setPrecipLast6h] = useState<number | null>(null);
   const [precipNext6h, setPrecipNext6h] = useState<number | null>(null);
   
-  const refreshIntervalRef = useRef<number | null>(null);
-  const accuracyIntervalRef = useRef<number | null>(null);
+  // Removed auto-refresh intervals - server now handles data collection
 
   useEffect(() => {
     // For development: uncomment the following line to force a full accuracy
@@ -281,50 +278,16 @@ const App: React.FC = () => {
         }
     };
 
-    // Run once shortly after initial load
+    // Run once shortly after initial load - server now handles periodic updates
     const initialCheckTimeout = setTimeout(runCheck, 2000);
-
-    // Then, set up the check to run every hour
-    if (accuracyIntervalRef.current) {
-      clearInterval(accuracyIntervalRef.current);
-    }
-    accuracyIntervalRef.current = window.setInterval(runCheck, 3600 * 1000);
     
-    // Clean up timers when the component unmounts
+    // Clean up timer when the component unmounts
     return () => {
       clearTimeout(initialCheckTimeout);
-      if (accuracyIntervalRef.current) {
-        clearInterval(accuracyIntervalRef.current);
-        accuracyIntervalRef.current = null;
-      }
     };
   }, []);
 
-  // Effect for seamless background data refresh every 15 minutes.
-  useEffect(() => {
-    const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-
-    const refreshData = () => {
-      console.log(`[Refresh] Performing scheduled 15-minute background data refresh for ${location.name}...`);
-      loadCurrentWeather(location);
-      loadAllForecasts(location);
-    };
-
-    // Clear any existing interval before setting new one
-    if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-    }
-    refreshIntervalRef.current = window.setInterval(refreshData, REFRESH_INTERVAL_MS);
-
-    // Clean up the interval when the component unmounts or when dependencies change,
-    // to prevent memory leaks and reset the timer on location/view change.
-    return () => {
-        if (refreshIntervalRef.current) {
-            clearInterval(refreshIntervalRef.current);
-            refreshIntervalRef.current = null;
-        }
-    };
-  }, [location, loadCurrentWeather, loadAllForecasts]);
+  // Removed auto-refresh - server now handles data collection every 30 minutes
 
 
   // Debounce user input for search
