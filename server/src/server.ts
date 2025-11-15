@@ -58,6 +58,15 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// API caching for GET requests (suitable for 30-minute cron-backed endpoints)
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') {
+    // Allow clients to cache API GET responses for 30 minutes
+    res.setHeader('Cache-Control', 'public, max-age=1800');
+  }
+  next();
+});
+
 // API routes
 app.use('/api/weather', weatherRoutes);
 app.use('/api/ai', aiRoutes);
