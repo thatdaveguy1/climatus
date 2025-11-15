@@ -18,6 +18,18 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      // Produce a content-hashed client bundle placed under dist/public
+      build: {
+        outDir: 'dist',
+        rollupOptions: {
+          output: {
+            // Put the main entry file where the server expects it: dist/public/app.[hash].js
+            entryFileNames: 'public/app.[hash].js',
+            chunkFileNames: 'public/chunk-[name].[hash].js',
+            assetFileNames: 'public/[name].[hash].[ext]'
+          }
+        }
       }
     };
 });
