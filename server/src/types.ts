@@ -104,20 +104,22 @@ export interface DailyData {
 }
 
 export interface OpenMeteoModelResponse {
-  latitude: number;
-  longitude: number;
-  generationtime_ms: number;
-  utc_offset_seconds: number;
-  timezone: string;
-  timezone_abbreviation: string;
-  elevation: number;
+  latitude?: number;
+  longitude?: number;
+  generationtime_ms?: number;
+  utc_offset_seconds?: number;
+  timezone?: string;
+  timezone_abbreviation?: string;
+  elevation?: number;
   hourly_units?: HourlyUnit;
   hourly?: HourlyData;
   daily_units?: DailyUnit;
   daily?: DailyData;
   current?: CurrentWeather;
   model?: string; // This will hold our unique model `key`
+  fetchedAt?: string; // server-attached timestamp when the model run was fetched
 }
+
 
 export interface ProcessedHourlyData {
   time: string;
