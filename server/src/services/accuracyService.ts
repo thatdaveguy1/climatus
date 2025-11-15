@@ -280,14 +280,14 @@ export const checkAndRunHourlyUpdate = async () => {
         await initialSetup(); 
 
         const now = Date.now();
-        const oneHour = 3600 * 1000;
+        const thirtyMinutes = 30 * 60 * 1000;
         let lastCheck = await getLease('last-accuracy-check');
 
-        if (!lastCheck || (now - lastCheck.timestamp) > oneHour) {
+        if (!lastCheck || (now - lastCheck.timestamp) > thirtyMinutes) {
             await fullUpdateCycle();
             await setLease({ id: 'last-accuracy-check', holderId: 'accuracy-service', timestamp: now });
         } else {
-            console.log('[Accuracy] Less than an hour since last full update. Skipping.');
+            console.log('[Accuracy] Less than thirty minutes since last full update. Skipping.');
         }
 
     } catch (err) {
