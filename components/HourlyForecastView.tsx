@@ -95,16 +95,16 @@ const HourlyForecastView: React.FC<HourlyForecastViewProps> = ({ data }) => {
                                 {timeLabel}
                             </span>
 
-                            <span className={`w-8 text-xl font-bold text-center ${getWindGustColor(hour.wind_gusts_10m ?? 0)}`}>
-                                {Math.round(hour.wind_gusts_10m ?? 0)}
+                            <span className={`w-12 text-xl font-bold text-center ${getWindGustColor(hour.wind_gusts_10m ?? 0)}`}>
+                                {Math.round(hour.wind_gusts_10m ?? 0)} kts
                             </span>
 
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8">
                                     <WeatherIcon />
                                 </div>
-                                <span className="w-12 text-md text-cyan-300 font-mono text-left">
-                                    {totalPrecip.toFixed(2)}
+                                <span className="w-16 text-md text-cyan-300 font-mono text-left">
+                                    {totalPrecip.toFixed(2)}mm
                                 </span>
                             </div>
 
@@ -112,15 +112,44 @@ const HourlyForecastView: React.FC<HourlyForecastViewProps> = ({ data }) => {
                                 {Math.round(temp)}°
                             </span>
 
-                            <div className="flex-1 h-2 bg-gray-700/50 rounded-full relative">
+                            <div className="flex-1 h-3 bg-gradient-to-r from-gray-800/60 via-gray-700/40 to-gray-800/60 rounded-full relative shadow-inner border border-gray-600/30">
+                                {/* Temperature gradient background */}
                                 <div 
-                                    className="absolute w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full border-2 border-gray-900 shadow-md"
+                                    className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-cyan-400/30 to-orange-400/20 rounded-full opacity-60"
+                                    style={{
+                                        background: `linear-gradient(90deg, 
+                                            rgba(59, 130, 246, 0.2) 0%, 
+                                            rgba(34, 197, 94, 0.3) 25%, 
+                                            rgba(251, 191, 36, 0.3) 50%, 
+                                            rgba(239, 68, 68, 0.2) 100%)`
+                                    }}
+                                ></div>
+                                
+                                {/* Temperature marker */}
+                                <div 
+                                    className="absolute w-4 h-4 bg-gradient-to-br from-white via-cyan-200 to-blue-300 rounded-full border-2 border-white/80 shadow-lg transition-all duration-300 hover:scale-110"
                                     style={{
                                         left: `${clampedOffset}%`,
                                         top: '50%',
                                         transform: 'translate(-50%, -50%)',
+                                        boxShadow: '0 0 12px rgba(34, 197, 94, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.3)'
                                     }}
-                                ></div>
+                                >
+                                    {/* Inner glow */}
+                                    <div className="absolute inset-0.5 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full opacity-80"></div>
+                                </div>
+                                
+                                {/* Temperature value tooltip on hover */}
+                                <div 
+                                    className="absolute opacity-0 hover:opacity-100 transition-opacity duration-200 bg-gray-900/95 text-white text-xs px-2 py-1 rounded shadow-lg pointer-events-none"
+                                    style={{
+                                        left: `${clampedOffset}%`,
+                                        top: '-35px',
+                                        transform: 'translateX(-50%)',
+                                    }}
+                                >
+                                    {Math.round(temp)}°C
+                                </div>
                             </div>
                         </div>
                     );

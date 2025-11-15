@@ -43,7 +43,9 @@
       // by appending a unique timestamp to the script's URL.
       const script = document.createElement('script');
       script.type = 'module';
-      script.src = `/index.tsx?v=${Date.now()}`;
+      // Load the prebuilt client bundle served from /public/app.js
+      // Use a build-time cache-bust query parameter if available (e.g. ?v=<build_ts>)
+      script.src = '/public/app.js';
       document.body.appendChild(script);
     </script>
   </body>
