@@ -108,6 +108,7 @@ const storeFutureForecasts = async () => {
                                     targetTime: targetTime.toISOString(),
                                     forecastedValue: value,
                                     forecastLeadTimeHours,
+                                    generationTime: generationTime.toISOString(),
                                 });
                             }
                         }
