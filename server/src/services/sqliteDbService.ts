@@ -5,7 +5,7 @@ import { AccuracyInterval, AccuracyScore, PendingForecast, ActualWeatherRecord, 
 
 const DATA_DIR = path.resolve(process.cwd(), 'server', 'data');
 const DB_PATH = path.join(DATA_DIR, 'accuracy.db');
-let db: Database | null = null;
+let db: any = null;
 
 const ensureDataDir = () => {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -25,12 +25,11 @@ const initDB = async (): Promise<boolean> => {
     CREATE TABLE IF NOT EXISTS pending_forecasts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       locationId INTEGER,
-      locationName TEXT,
       modelKey TEXT,
       metricKey TEXT,
       targetTime TEXT,
-      generationTime TEXT,
-      value REAL
+      forecastedValue REAL,
+      forecastLeadTimeHours INTEGER
     )
   `).run();
 
@@ -56,8 +55,10 @@ const initDB = async (): Promise<boolean> => {
       modelKey TEXT,
       metricKey TEXT,
       targetTime TEXT,
-      generationTime TEXT,
-      value REAL
+      forecastLeadTimeHours INTEGER,
+      forecastedValue REAL,
+      actualValue REAL,
+      error REAL
     )
   `).run();
 
@@ -95,18 +96,17 @@ const areAccuracyStoresEmpty = async (): Promise<boolean> => {
 
 const addPendingForecasts = async (forecasts: Omit<PendingForecast, 'id'>[]): Promise<void> => {
   if (!db) throw new Error('DB not initialized');
-  const insert = db.prepare(`INSERT INTO pending_forecasts (locationId, locationName, modelKey, metricKey, targetTime, generationTime, value) VALUES (@locationId, @locationName, @modelKey, @metricKey, @targetTime, @generationTime, @value)`);
+  const insert = db.prepare(`INSERT INTO pending_forecasts (locationId, modelKey, metricKey, targetTime, forecastedValue, forecastLeadTimeHours) VALUES (@locationId, @modelKey, @metricKey, @targetTime, @forecastedValue, @forecastLeadTimeHours)`);
   const insertMany = db.transaction((rows: any[]) => {
     for (const r of rows) insert.run(r);
   });
   insertMany(forecasts.map(f => ({
     locationId: f.locationId,
-    locationName: f.locationName,
     modelKey: f.modelKey,
     metricKey: f.metricKey,
     targetTime: f.targetTime,
-    generationTime: f.generationTime,
-    value: f.value,
+    forecastedValue: f.forecastedValue,
+    forecastLeadTimeHours: f.forecastLeadTimeHours,
   })));
 };
 
@@ -153,7 +153,9 @@ const getAccuracyScores = async (): Promise<AccuracyScore[]> => {
     if (!map.has(key)) map.set(key, { locationId: r.locationId, modelKey: r.modelKey, locationName: r.locationName, modelName: r.modelName, scores: {} });
     const s = map.get(key)!;
     if (!s.scores[r.metricKey]) s.scores[r.metricKey] = { '24h': { meanAbsoluteError: 0, hoursTracked: 0 }, '48h': { meanAbsoluteError: 0, hoursTracked: 0 }, '5d': { meanAbsoluteError: 0, hoursTracked: 0 } };
-    s.scores[r.metricKey][r.interval] = { meanAbsoluteError: r.meanAbsoluteError, hoursTracked: r.hoursTracked };
+    // TS-friendly assignment
+    const intervalKey = r.interval as '24h' | '48h' | '5d';
+    s.scores[r.metricKey][intervalKey] = { meanAbsoluteError: r.meanAbsoluteError, hoursTracked: r.hoursTracked };
   }
   return Array.from(map.values());
 };
@@ -165,7 +167,7 @@ const applyAccuracyUpdatesAndDelete = async (
 ): Promise<void> => {
   if (!db) throw new Error('DB not initialized');
 
-  const insertHist = db.prepare('INSERT INTO historical_forecasts (locationId, modelKey, metricKey, targetTime, generationTime, value) VALUES (@locationId, @modelKey, @metricKey, @targetTime, @generationTime, @value)');
+  const insertHist = db.prepare('INSERT INTO historical_forecasts (locationId, modelKey, metricKey, targetTime, forecastLeadTimeHours, forecastedValue, actualValue, error) VALUES (@locationId, @modelKey, @metricKey, @targetTime, @forecastLeadTimeHours, @forecastedValue, @actualValue, @error)');
   const updStmt = db.prepare('INSERT INTO accuracy_scores (locationId, modelKey, locationName, modelName, metricKey, intervalKey, meanAbsoluteError, hoursTracked) VALUES (@locationId, @modelKey, @locationName, @modelName, @metricKey, @intervalKey, @meanAbsoluteError, @hoursTracked) ON CONFLICT(locationId, modelKey, metricKey, intervalKey) DO UPDATE SET meanAbsoluteError=excluded.meanAbsoluteError, hoursTracked=excluded.hoursTracked');
   
   const getModelName = (modelKey: string) => {
