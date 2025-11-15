@@ -408,7 +408,9 @@ const fetchAndProcessModels = async (
       if (data.error && data.reason) throw new Error(data.reason);
       
       const modelData = extractModelData(data, model, endpoint, view);
-      const normalizedPayload = { ...modelData };
+      // attach a fetchedAt timestamp (server-side) to use as generationTime for lead-time calculations
+      const fetchedAt = new Date().toISOString();
+      const normalizedPayload = { ...modelData, fetchedAt };
       if (view !== 'daily' && normalizedPayload.hourly) {
           normalizedPayload.hourly = normalizeHourlyDataKeys(modelData.hourly);
       }
