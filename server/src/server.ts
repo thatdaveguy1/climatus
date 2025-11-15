@@ -78,36 +78,38 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// TypeScript compilation middleware
-app.get('*.tsx', async (req, res, next) => {
-  try {
-    const filePath = path.join(__dirname, '../../', req.path);
-    
-    if (!fs.existsSync(filePath)) {
-      return next();
-    }
-
-    const result = await build({
-      entryPoints: [filePath],
-      bundle: true,
-      format: 'esm',
-      target: 'es2020',
-      jsx: 'automatic',
-      write: false,
-      external: ['react', 'react-dom', 'recharts', '@google/genai'],
-      loader: {
-        '.tsx': 'tsx',
-        '.ts': 'ts'
+// TypeScript compilation middleware (development-only)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('*.tsx', async (req, res, next) => {
+    try {
+      const filePath = path.join(__dirname, '../../', req.path);
+      
+      if (!fs.existsSync(filePath)) {
+        return next();
       }
-    });
 
-    res.setHeader('Content-Type', 'application/javascript');
-    res.send(result.outputFiles[0].text);
-  } catch (error) {
-    console.error('TypeScript compilation error:', error);
-    next(error);
-  }
-});
+      const result = await build({
+        entryPoints: [filePath],
+        bundle: true,
+        format: 'esm',
+        target: 'es2020',
+        jsx: 'automatic',
+        write: false,
+        external: ['react', 'react-dom', 'recharts', '@google/genai'],
+        loader: {
+          '.tsx': 'tsx',
+          '.ts': 'ts'
+        }
+      });
+
+      res.setHeader('Content-Type', 'application/javascript');
+      res.send(result.outputFiles[0].text);
+    } catch (error) {
+      console.error('TypeScript compilation error:', error);
+      next(error);
+    }
+  });
+}
 
 // Serve static files from the React app root (for importmap-based loading)
 app.use(express.static(path.join(__dirname, '../../'), {
