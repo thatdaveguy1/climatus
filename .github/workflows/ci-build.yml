@@ -1,0 +1,37 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main, 'server-side-conversion' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps & build client
+        working-directory: ./
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build server
+        working-directory: ./server
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-dist
+          path: server/dist
