@@ -2,6 +2,7 @@ import express from 'express';
 import { fetchForecasts, searchLocations, fetchCurrentWeather, fetchPastWeather } from '../services/openMeteoService.js';
 import fs from 'fs';
 import path from 'path';
+import { ACCURACY_LOCATIONS } from '../constants.js';
 
 const router = express.Router();
 
@@ -39,8 +40,37 @@ router.get('/forecasts/:type', async (req, res) => {
       return res.status(400).json({ error: 'Invalid latitude or longitude values' });
     }
 
-    const result = await fetchForecasts(type as 'hourly' | 'daily', lat, lon);
-    res.json(result);
+    // Attempt to serve from disk cache for known collection locations
+    const matched = ACCURACY_LOCATIONS.find(l => Math.abs(l.latitude - lat) < 0.02 && Math.abs(l.longitude - lon) < 0.02);
+    if (matched) {
+      const key = matched.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const filePath = path.join(CACHE_DIR, `${key}.${type}.json`);
+      const cached = readCache(filePath);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+
+    // If no cache available, optionally allow a live fetch (controlled by env)
+    if (process.env.SERVER_ALLOW_LIVE_FETCH_ON_MISS === 'true') {
+      const live = await fetchForecasts(type as 'hourly' | 'daily', lat, lon);
+      // persist to cache if matched a known location
+      if (matched) {
+        try {
+          const key = matched.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const filePath = path.join(CACHE_DIR, `${key}.${type}.json`);
+          fs.mkdirSync(CACHE_DIR, { recursive: true });
+          fs.writeFileSync(filePath, JSON.stringify({ fetchedAt: new Date().toISOString(), data: live }), 'utf8');
+        } catch (err) {
+          console.warn('[API] Failed to persist live forecast to cache', err);
+        }
+      }
+      res.setHeader('X-Cache', 'MISS');
+      return res.json({ fetchedAt: new Date().toISOString(), data: live });
+    }
+
+    return res.status(503).json({ error: 'No cached forecast available for requested location' });
   } catch (error) {
     console.error('Error fetching forecasts:', error);
     res.status(500).json({ 
@@ -90,8 +120,35 @@ router.get('/current', async (req, res) => {
       return res.status(400).json({ error: 'Invalid latitude or longitude values' });
     }
 
-    const result = await fetchCurrentWeather(lat, lon);
-    res.json(result);
+    // Serve from disk cache for known collection locations
+    const matched = ACCURACY_LOCATIONS.find(l => Math.abs(l.latitude - lat) < 0.02 && Math.abs(l.longitude - lon) < 0.02);
+    if (matched) {
+      const key = matched.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const filePath = path.join(CACHE_DIR, `${key}.current.json`);
+      const cached = readCache(filePath);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+
+    if (process.env.SERVER_ALLOW_LIVE_FETCH_ON_MISS === 'true') {
+      const live = await fetchCurrentWeather(lat, lon);
+      if (matched) {
+        try {
+          const key = matched.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const filePath = path.join(CACHE_DIR, `${key}.current.json`);
+          fs.mkdirSync(CACHE_DIR, { recursive: true });
+          fs.writeFileSync(filePath, JSON.stringify({ fetchedAt: new Date().toISOString(), data: live }), 'utf8');
+        } catch (err) {
+          console.warn('[API] Failed to persist live current to cache', err);
+        }
+      }
+      res.setHeader('X-Cache', 'MISS');
+      return res.json({ fetchedAt: new Date().toISOString(), data: live });
+    }
+
+    return res.status(503).json({ error: 'No cached current weather available for requested location' });
   } catch (error) {
     console.error('Error fetching current weather:', error);
     res.status(500).json({ 
