@@ -79,7 +79,7 @@ const storeFutureForecasts = async () => {
 
             for (const result of successes) {
                 // Prefer server-side fetchedAt attached by openMeteoService; fall back to generationtime_ms if missing
-                const generationTime = result.fetchedAt ? new Date(result.fetchedAt) : new Date(result.generationtime_ms);
+                const generationTime = result.fetchedAt ? new Date(result.fetchedAt) : new Date(result.generationtime_ms || Date.now());
                 const modelKey = result.model;
                 if (!result.hourly?.time) continue;
                 
