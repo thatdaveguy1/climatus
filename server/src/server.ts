@@ -122,7 +122,17 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Serve prebuilt client bundle from /public (dist/public) with long cache when available
 const publicDir = path.join(__dirname, '../../dist/public');
+let clientBundleFile = 'app.js';
 if (fs.existsSync(publicDir)) {
+  // Find a content-hashed bundle (e.g. app.abcdef12.js) if present
+  try {
+    const files = fs.readdirSync(publicDir);
+    const hashed = files.find(f => /^app\.[a-f0-9]{6,}\.js$/.test(f));
+    if (hashed) clientBundleFile = hashed;
+  } catch (e) {
+    console.warn('Unable to scan publicDir for bundles', e);
+  }
+
   app.use('/public', express.static(publicDir, {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.js')) {
@@ -158,6 +168,24 @@ app.use(express.static(path.join(__dirname, '../../'), {
 // Catch all handler: send back React's index.html file for client-side routing
 // This should be LAST, after all API routes and static files
 app.get('*', (req, res) => {
+  const indexPath = path.join(__dirname, '../../index.html');
+  if (fs.existsSync(publicDir) && fs.existsSync(indexPath)) {
+    // Read index.html and rewrite the client bundle path to include the content-hash
+    try {
+      let html = fs.readFileSync(indexPath, 'utf8');
+      // Replace /public/app.js with the hashed filename when available
+      html = html.replace('/public/app.js', `/public/${clientBundleFile}`);
+      // Ensure the HTML is not aggressively cached so clients fetch new index.html when deploys happen
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      res.setHeader('Content-Type', 'text/html');
+      return res.send(html);
+    } catch (err) {
+      console.error('Error reading or sending index.html', err);
+      return res.status(500).send('Internal server error');
+    }
+  }
+
+  // Fallback - serve the raw index.html from repo root
   res.sendFile(path.join(__dirname, '../../index.html'));
 });
 
