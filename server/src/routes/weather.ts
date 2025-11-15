@@ -1,7 +1,22 @@
 import express from 'express';
 import { fetchForecasts, searchLocations, fetchCurrentWeather, fetchPastWeather } from '../services/openMeteoService.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
+
+const CACHE_DIR = path.resolve(process.cwd(), 'server', 'data', 'cache');
+const readCache = (filePath: string) => {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('[API] Failed to read cache file', filePath, err);
+    return null;
+  }
+};
+const coordKey = (lat: number, lon: number) => `${lat.toFixed(4)}_${lon.toFixed(4)}`;
 
 // Get forecasts (hourly or daily)
 router.get('/forecasts/:type', async (req, res) => {
