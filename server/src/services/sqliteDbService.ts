@@ -85,6 +85,17 @@ const initDB = async (): Promise<boolean> => {
     )
   `).run();
 
+  // Ensure migration: add generationTime column to pending_forecasts if missing (safe to run repeatedly)
+  try {
+    const cols = db.prepare("PRAGMA table_info(pending_forecasts)").all().map((r: any) => r.name);
+    if (!cols.includes('generationTime')) {
+      db.prepare("ALTER TABLE pending_forecasts ADD COLUMN generationTime TEXT").run();
+    }
+  } catch (err) {
+    // If the table doesn't exist yet or other issue, ignore - it will be created above
+    console.warn('[DB-SQLITE] migration check for generationTime failed', err);
+  }
+
   return true;
 };
 
