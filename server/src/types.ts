@@ -175,6 +175,7 @@ export interface PendingForecast {
   targetTime: string; // ISO string
   forecastedValue: number;
   forecastLeadTimeHours: number;
+  generationTime?: string; // ISO string when the model run was fetched (server-side fetchedAt)
 }
 
 export interface AccuracyScoreData {

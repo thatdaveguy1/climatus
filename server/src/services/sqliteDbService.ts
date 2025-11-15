@@ -29,7 +29,8 @@ const initDB = async (): Promise<boolean> => {
       metricKey TEXT,
       targetTime TEXT,
       forecastedValue REAL,
-      forecastLeadTimeHours INTEGER
+      forecastLeadTimeHours INTEGER,
+      generationTime TEXT
     )
   `).run();
 
@@ -96,7 +97,7 @@ const areAccuracyStoresEmpty = async (): Promise<boolean> => {
 
 const addPendingForecasts = async (forecasts: Omit<PendingForecast, 'id'>[]): Promise<void> => {
   if (!db) throw new Error('DB not initialized');
-  const insert = db.prepare(`INSERT INTO pending_forecasts (locationId, modelKey, metricKey, targetTime, forecastedValue, forecastLeadTimeHours) VALUES (@locationId, @modelKey, @metricKey, @targetTime, @forecastedValue, @forecastLeadTimeHours)`);
+  const insert = db.prepare(`INSERT INTO pending_forecasts (locationId, modelKey, metricKey, targetTime, forecastedValue, forecastLeadTimeHours, generationTime) VALUES (@locationId, @modelKey, @metricKey, @targetTime, @forecastedValue, @forecastLeadTimeHours, @generationTime)`);
   const insertMany = db.transaction((rows: any[]) => {
     for (const r of rows) insert.run(r);
   });
@@ -107,6 +108,7 @@ const addPendingForecasts = async (forecasts: Omit<PendingForecast, 'id'>[]): Pr
     targetTime: f.targetTime,
     forecastedValue: f.forecastedValue,
     forecastLeadTimeHours: f.forecastLeadTimeHours,
+    generationTime: (f as any).generationTime || null,
   })));
 };
 
