@@ -1,5 +1,6 @@
 import express from 'express';
 import { checkAndRunHourlyUpdate, runFullAccuracyCycleNow } from '../services/accuracyService.js';
+import { getLease } from '../services/sqliteDbService.js';
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.post('/full-cycle', async (req, res) => {
 });
 
 // Get accuracy status
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
   const lastCheckString = process.env.LAST_ACCURACY_CHECK || '';
   const lastCheckTime = lastCheckString ? parseInt(lastCheckString, 10) : 0;
   const now = Date.now();
