@@ -120,6 +120,31 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
+// Serve prebuilt client bundle from /public (dist/public) with long cache when available
+const publicDir = path.join(__dirname, '../../dist/public');
+if (fs.existsSync(publicDir)) {
+  app.use('/public', express.static(publicDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js')) {
+        // App bundle: long-lived and immutable
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    }
+  }));
+} else {
+  // Fallback for development when dist/public isn't populated
+  app.use('/public', express.static(path.join(__dirname, '../../public'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
+}
+
 // Serve static files from the React app root (for importmap-based loading)
 app.use(express.static(path.join(__dirname, '../../'), {
   setHeaders: (res, filePath) => {
