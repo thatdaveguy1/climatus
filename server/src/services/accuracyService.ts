@@ -1,4 +1,4 @@
-import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty } from './dbService.js';
+import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty } from './mockDbService.js';
 import { fetchPastWeather, fetchRawModelRunsForAccuracy } from './openMeteoService.js';
 import { ACCURACY_LOCATIONS, LAST_ACCURACY_CHECK_KEY, MODELS, TRACKABLE_METRICS, ACCURACY_FIRST_RUN_KEY, ACCURACY_MAX_FORECAST_HOURS, ACCURACY_STALE_FORECAST_HOURS } from '../constants.js';
 import { PendingForecast, AccuracyInterval, ActualWeatherRecord, HistoricalForecastRecord, OpenMeteoModelResponse } from '../types.js';
@@ -10,7 +10,7 @@ const LEASE_ID = 'accuracy-runner-lease';
 const LEASE_DURATION = 90 * 1000; // 90 seconds
 const LEASE_RENEWAL_INTERVAL = 60 * 1000; // 60 seconds
 const myId = Math.random().toString();
-let leaseInterval: number | null = null;
+let leaseInterval: NodeJS.Timeout | null = null;
 let isLeader = false;
 
 
@@ -250,13 +250,12 @@ const fullUpdateCycle = async () => {
 
 const initialSetup = async () => {
     console.log("[Accuracy] Performing initial setup check...");
-    const firstRunTimestamp = localStorage localStorage.getItemlocalStorage.getItem localStorage.getItem || (() => null)(ACCURACY_FIRST_RUN_KEY);
+    const firstRunTimestamp = null; // Not using localStorage in server environment
     const storesAreEmpty = await areAccuracyStoresEmpty();
 
-    if (!firstRunTimestamp || storesAreEmpty) {
+    if (storesAreEmpty) {
         console.log("[Accuracy] First run detected or database is empty. Seeding data...");
         await fullUpdateCycle();
-        localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
     } else {
         console.log("[Accuracy] Existing data found. Proceeding with normal hourly check.");
     }
@@ -274,17 +273,17 @@ export const checkAndRunHourlyUpdate = async () => {
 
         console.log('[Accuracy] Acquired leader lease. Running hourly update.');
         if (leaseInterval) clearInterval(leaseInterval);
-        leaseInterval = window.setInterval(renewLease, LEASE_RENEWAL_INTERVAL);
+        leaseInterval = setInterval(renewLease, LEASE_RENEWAL_INTERVAL);
         
         await initialSetup(); 
 
-        const lastCheck = localStorage localStorage.getItemlocalStorage.getItem localStorage.getItem || (() => null)(LAST_ACCURACY_CHECK_KEY);
         const now = Date.now();
         const oneHour = 3600 * 1000;
+        let lastCheck = await getLease('last-accuracy-check');
 
-        if (!lastCheck || (now - parseInt(lastCheck, 10)) > oneHour) {
+        if (!lastCheck || (now - lastCheck.timestamp) > oneHour) {
             await fullUpdateCycle();
-            localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(LAST_ACCURACY_CHECK_KEY, now.toString());
+            await setLease({ id: 'last-accuracy-check', holderId: 'accuracy-service', timestamp: now });
         } else {
             console.log('[Accuracy] Less than an hour since last full update. Skipping.');
         }
@@ -299,7 +298,7 @@ export const runFullAccuracyCycleNow = async () => {
     try {
         await initDB();
         await fullUpdateCycle();
-        localStorage localStorage.setItemlocalStorage.setItem localStorage.setItem || (() => {})(LAST_ACCURACY_CHECK_KEY, Date.now().toString());
+        await setLease({ id: 'last-accuracy-check', holderId: 'accuracy-service', timestamp: Date.now() });
         console.log('[Accuracy] Manual update cycle completed successfully.');
     } catch (err) {
         console.error('[Accuracy] Manual full update cycle failed:', err);
