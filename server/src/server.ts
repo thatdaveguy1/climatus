@@ -78,6 +78,26 @@ app.get('/api/data-collection/status', (req, res) => {
   res.json(status);
 });
 
+// Testing endpoint to trigger an immediate collection (only in non-production)
+app.post('/api/data-collection/trigger', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Not allowed in production' });
+  }
+
+  try {
+    // The service exposes collectData indirectly via start() which runs immediately; to avoid changing
+    // the class visibility we stop/start the service to force an immediate run if already running.
+    console.log('[DataCollection] Trigger requested via API');
+    dataCollectionService.stop();
+    dataCollectionService.start();
+
+    return res.json({ status: 'triggered' });
+  } catch (err) {
+    console.error('Error triggering data collection:', err);
+    return res.status(500).json({ error: 'trigger failed' });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
