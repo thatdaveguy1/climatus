@@ -12,7 +12,7 @@ const COLLECTION_LOCATIONS = [
   { name: 'Villeneuve Airport CZVL', latitude: 53.8333, longitude: -113.35 }
 ];
 
-const CACHE_DIR = path.resolve(process.cwd(), 'server', 'data', 'cache');
+const CACHE_DIR = process.env.SERVER_CACHE_DIR ? path.resolve(process.env.SERVER_CACHE_DIR) : path.resolve(__dirname, '..', '..', 'data', 'cache');
 const ensureCacheDir = () => {
   if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 };
