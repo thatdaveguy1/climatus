@@ -6,7 +6,7 @@ import { ACCURACY_LOCATIONS } from '../constants.js';
 
 const router = express.Router();
 
-const CACHE_DIR = path.resolve(process.cwd(), 'server', 'data', 'cache');
+const CACHE_DIR = process.env.SERVER_CACHE_DIR ? path.resolve(process.env.SERVER_CACHE_DIR) : path.resolve(__dirname, '..', '..', 'data', 'cache');
 const readCache = (filePath: string) => {
   try {
     if (!fs.existsSync(filePath)) return null;
