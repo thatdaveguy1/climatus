@@ -1,5 +1,4 @@
 
-
 import React, { useMemo } from 'react';
 import {
   LineChart,
@@ -171,18 +170,27 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ hourlyData, dailyData
     return referenceHourlyData.map((refPoint, index) => {
         const { time } = refPoint;
         let displayLabel: string;
+        
+        // FIX: Correctly parse date-only or datetime strings by treating them as UTC.
+        const dateString = time.includes('T') ? time + 'Z' : time + 'T00:00:00Z';
+        const date = new Date(dateString);
+
+        if (isNaN(date.getTime())) {
+          return null; // Skip invalid date points
+        }
+        
         if (activeView === 'hourly') {
-            const date = new Date(time + 'Z');
             const currentDay = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: userTimeZone });
             const hourFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: true, timeZone: userTimeZone });
             let label = hourFormatter.format(date);
-            if (date.getHours() % 12 === 0) label = date.getHours() === 0 ? 'Midnight' : 'Noon';
+            if (date.getUTCHours() % 12 === 0) label = date.getUTCHours() === 0 ? 'Midnight' : 'Noon';
             displayLabel = label;
             if (lastDay === null || currentDay !== lastDay) displayLabel = `${currentDay}, ${label}`;
             lastDay = currentDay;
         } else {
-            const timeFormatOptions: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', timeZone: userTimeZone };
-            displayLabel = new Date(time + 'Z').toLocaleDateString('en-US', timeFormatOptions);
+            // FIX: Simplify daily labels to 3-letter abbreviations (e.g., 'Thu') to declutter the x-axis.
+            const timeFormatOptions: Intl.DateTimeFormatOptions = { weekday: 'short', timeZone: userTimeZone };
+            displayLabel = date.toLocaleDateString('en-US', timeFormatOptions);
         }
 
         const dataPoint: ChartDataPoint = {
@@ -216,7 +224,7 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ hourlyData, dailyData
             }
         }
         return dataPoint;
-    });
+    }).filter((p): p is ChartDataPoint => p !== null);
   }, [activeView, hourlyData, dailyData, metric.key, userTimeZone, keyForView, dailyAggregates]);
   
   const modelEntries = useMemo(() => {

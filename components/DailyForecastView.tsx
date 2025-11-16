@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import { ProcessedForecasts, ProcessedHourlyData } from '../types';
 import { IconCloudSun, IconCloudRain, IconCloudSnow } from '../utils/weatherUtils';
@@ -73,23 +75,35 @@ const DailyForecastView: React.FC<DailyForecastViewProps> = ({ data }) => {
                     const barWidth = ((dayHigh - dayLow) / tempRange.weekRange) * 100;
                     const barOffset = ((dayLow - tempRange.weekMin) / tempRange.weekRange) * 100;
                     
+                    // FIX: Correctly parse date-only string by treating it as UTC midnight.
+                    const date = new Date(day.time + 'T00:00:00Z');
+                    const dayLabel = !isNaN(date.getTime()) 
+                        ? date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+                        : 'Invalid Date';
+
                     return (
                         <div key={index} className="flex items-center gap-4 p-2 rounded-lg transition-colors hover:bg-white/5">
                             <span className="w-10 text-lg font-bold text-gray-300 text-left">
-                                {new Date(day.time + 'Z').toLocaleDateString('en-US', { weekday: 'short' })}
+                                {dayLabel}
                             </span>
 
-                            <span className={`w-8 text-xl font-bold text-center ${getWindGustColor(day.wind_gusts_10m ?? 0)}`}>
-                                {Math.round(day.wind_gusts_10m ?? 0)}
-                            </span>
+                            <div className="flex flex-col items-center w-12 text-center">
+                                <span className={`text-xl font-bold ${getWindGustColor(day.wind_gusts_10m_max ?? 0)}`}>
+                                    {Math.round(day.wind_speed_10m_max ?? 0)}
+                                </span>
+                                <span className="text-xs text-gray-400">kts</span>
+                            </div>
 
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8">
                                     <WeatherIcon />
                                 </div>
-                                <span className="w-12 text-md text-cyan-300 font-mono text-left">
-                                    {totalPrecip.toFixed(2)}
-                                </span>
+                                <div className="flex flex-col items-start w-16">
+                                    <span className="text-md text-cyan-300 font-mono">
+                                        {totalPrecip.toFixed(2)}
+                                    </span>
+                                    <span className="text-xs text-gray-400 -mt-1">mm</span>
+                                </div>
                             </div>
 
                             <span className="w-10 text-lg text-gray-400 font-mono text-right">

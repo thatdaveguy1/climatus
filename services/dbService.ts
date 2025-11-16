@@ -2,15 +2,17 @@ import { AccuracyInterval, AccuracyScore, PendingForecast, ActualWeatherRecord, 
 import { MODELS } from '../constants';
 
 const DB_NAME = 'ForecastAccuracyDB';
-const DB_VERSION = 16;
+const DB_VERSION = 17;
 const PENDING_FORECASTS_STORE = 'pending_forecasts';
 const ACCURACY_SCORES_STORE = 'accuracy_scores';
 const ACTUAL_WEATHER_STORE = 'actual_weather';
 const HISTORICAL_FORECASTS_STORE = 'historical_forecasts';
 const LEADER_LEASE_STORE = 'leader_lease';
+const APP_STATE_STORE = 'app_state';
 
+let db: IDBDatabase | null = null;
+let dbInitializationPromise: Promise<boolean> | null = null;
 
-let db: IDBDatabase;
 
 const createDbError = (rawError: DOMException | null, context: string): Error => {
     // FIX: The `instanceof Error` check was removed. The parameter `rawError` is typed as
@@ -26,21 +28,40 @@ const createDbError = (rawError: DOMException | null, context: string): Error =>
 };
 
 export const initDB = (): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    if (db) {
-      return resolve(true);
-    }
+  if (db) {
+    return Promise.resolve(true);
+  }
 
+  if (dbInitializationPromise) {
+    return dbInitializationPromise;
+  }
+
+  dbInitializationPromise = new Promise((resolve, reject) => {
     console.log(`[DB] Initializing database "${DB_NAME}" version ${DB_VERSION}...`);
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {
       console.error('Database error:', request.error);
+      dbInitializationPromise = null;
       reject(createDbError(request.error, 'open request'));
     };
 
     request.onsuccess = (event) => {
       db = (event.target as IDBOpenDBRequest).result;
+      
+      db.onclose = () => {
+        console.warn('[DB] Database connection closed. It will be reopened on the next operation.');
+        db = null;
+        dbInitializationPromise = null;
+      };
+
+      db.onversionchange = () => {
+        console.log('[DB] Database version change requested from another tab. Closing connection.');
+        if (db) {
+            db.close();
+        }
+      };
+
       console.log(`[DB] Database "${DB_NAME}" initialized successfully.`);
       resolve(true);
     };
@@ -82,6 +103,12 @@ export const initDB = (): Promise<boolean> => {
           dbInstance.createObjectStore(LEADER_LEASE_STORE, { keyPath: 'id' });
       }
       
+      // APP_STATE_STORE
+      if (!dbInstance.objectStoreNames.contains(APP_STATE_STORE)) {
+          console.log(`[DB] Creating object store: ${APP_STATE_STORE}`);
+          dbInstance.createObjectStore(APP_STATE_STORE, { keyPath: 'key' });
+      }
+
       // HISTORICAL_FORECASTS_STORE and its new index
       let historicalStore: IDBObjectStore;
       if (!dbInstance.objectStoreNames.contains(HISTORICAL_FORECASTS_STORE)) {
@@ -100,8 +127,10 @@ export const initDB = (): Promise<boolean> => {
   });
 };
 
-export const areAccuracyStoresEmpty = (): Promise<boolean> => {
+export const areAccuracyStoresEmpty = async (): Promise<boolean> => {
+    await initDB();
     return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in areAccuracyStoresEmpty"));
         const transaction = db.transaction([PENDING_FORECASTS_STORE, ACTUAL_WEATHER_STORE], 'readonly');
         const pendingStore = transaction.objectStore(PENDING_FORECASTS_STORE);
         const actualStore = transaction.objectStore(ACTUAL_WEATHER_STORE);
@@ -120,8 +149,10 @@ export const areAccuracyStoresEmpty = (): Promise<boolean> => {
     });
 };
 
-export const addPendingForecasts = (forecasts: Omit<PendingForecast, 'id'>[]): Promise<void> => {
+export const addPendingForecasts = async (forecasts: Omit<PendingForecast, 'id'>[]): Promise<void> => {
+  await initDB();
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB connection failed in addPendingForecasts"));
     const transaction = db.transaction([PENDING_FORECASTS_STORE], 'readwrite');
     const store = transaction.objectStore(PENDING_FORECASTS_STORE);
     forecasts.forEach(forecast => store.add(forecast));
@@ -130,8 +161,10 @@ export const addPendingForecasts = (forecasts: Omit<PendingForecast, 'id'>[]): P
   });
 };
 
-export const addActualWeather = (record: Omit<ActualWeatherRecord, 'id'>): Promise<void> => {
+export const addActualWeather = async (record: Omit<ActualWeatherRecord, 'id'>): Promise<void> => {
+  await initDB();
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB connection failed in addActualWeather"));
     const transaction = db.transaction([ACTUAL_WEATHER_STORE], 'readwrite');
     const store = transaction.objectStore(ACTUAL_WEATHER_STORE);
     const index = store.index('locationTimeIndex');
@@ -158,8 +191,10 @@ export const addActualWeather = (record: Omit<ActualWeatherRecord, 'id'>): Promi
   });
 };
 
-export const getDuePendingForecasts = (cutoff: Date): Promise<PendingForecast[]> => {
+export const getDuePendingForecasts = async (cutoff: Date): Promise<PendingForecast[]> => {
+    await initDB();
     return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in getDuePendingForecasts"));
         const transaction = db.transaction([PENDING_FORECASTS_STORE], 'readonly');
         const store = transaction.objectStore(PENDING_FORECASTS_STORE);
         const index = store.index('targetTimeIndex');
@@ -170,8 +205,10 @@ export const getDuePendingForecasts = (cutoff: Date): Promise<PendingForecast[]>
     });
 };
 
-export const getLatestActualWeatherTime = (locationId: number): Promise<string | null> => {
+export const getLatestActualWeatherTime = async (locationId: number): Promise<string | null> => {
+    await initDB();
     return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in getLatestActualWeatherTime"));
         const transaction = db.transaction([ACTUAL_WEATHER_STORE], 'readonly');
         const store = transaction.objectStore(ACTUAL_WEATHER_STORE);
         const index = store.index('locationTimeIndex');
@@ -184,8 +221,10 @@ export const getLatestActualWeatherTime = (locationId: number): Promise<string |
     });
 };
 
-export const getActualsForLocationAndTimeRange = (locationId: number, minTime: string, maxTime: string): Promise<ActualWeatherRecord[]> => {
+export const getActualsForLocationAndTimeRange = async (locationId: number, minTime: string, maxTime: string): Promise<ActualWeatherRecord[]> => {
+    await initDB();
     return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in getActualsForLocationAndTimeRange"));
         const transaction = db.transaction([ACTUAL_WEATHER_STORE], 'readonly');
         const store = transaction.objectStore(ACTUAL_WEATHER_STORE);
         const index = store.index('locationTimeIndex');
@@ -196,8 +235,10 @@ export const getActualsForLocationAndTimeRange = (locationId: number, minTime: s
     });
 };
 
-export const getHistoricalForecasts = (locationId: number, minTime: string, maxTime: string): Promise<HistoricalForecastRecord[]> => {
+export const getHistoricalForecasts = async (locationId: number, minTime: string, maxTime: string): Promise<HistoricalForecastRecord[]> => {
+  await initDB();
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB connection failed in getHistoricalForecasts"));
     const transaction = db.transaction([HISTORICAL_FORECASTS_STORE], 'readonly');
     const store = transaction.objectStore(HISTORICAL_FORECASTS_STORE);
     const index = store.index('locationTimeIndex');
@@ -209,8 +250,10 @@ export const getHistoricalForecasts = (locationId: number, minTime: string, maxT
   });
 };
 
-export const getAccuracyScores = (): Promise<AccuracyScore[]> => {
+export const getAccuracyScores = async (): Promise<AccuracyScore[]> => {
+  await initDB();
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB connection failed in getAccuracyScores"));
     const transaction = db.transaction([ACCURACY_SCORES_STORE], 'readonly');
     const store = transaction.objectStore(ACCURACY_SCORES_STORE);
     const request = store.getAll();
@@ -219,12 +262,14 @@ export const getAccuracyScores = (): Promise<AccuracyScore[]> => {
   });
 };
 
-export const applyAccuracyUpdatesAndDelete = (
+export const applyAccuracyUpdatesAndDelete = async (
   updates: Array<{ locationId: number; locationName: string; modelKey: string; metricKey: string; error: number; interval: AccuracyInterval }>,
   idsToDelete: number[],
   historicalRecordsToAdd: Omit<HistoricalForecastRecord, 'id'>[]
 ): Promise<void> => {
+  await initDB();
   return new Promise((resolve, reject) => {
+    if (!db) return reject(new Error("DB connection failed in applyAccuracyUpdatesAndDelete"));
     const tx = db.transaction([ACCURACY_SCORES_STORE, PENDING_FORECASTS_STORE, HISTORICAL_FORECASTS_STORE], 'readwrite');
     const scoresStore = tx.objectStore(ACCURACY_SCORES_STORE);
     const pendingStore = tx.objectStore(PENDING_FORECASTS_STORE);
@@ -289,8 +334,10 @@ export const applyAccuracyUpdatesAndDelete = (
   });
 };
 
-export const clearOldData = (cutoffDate: Date): Promise<void> => {
+export const clearOldData = async (cutoffDate: Date): Promise<void> => {
+    await initDB();
     return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in clearOldData"));
         const tx = db.transaction([PENDING_FORECASTS_STORE, ACTUAL_WEATHER_STORE, HISTORICAL_FORECASTS_STORE], 'readwrite');
         const stores = {
             pending: tx.objectStore(PENDING_FORECASTS_STORE).index('targetTimeIndex'),
@@ -314,21 +361,25 @@ export const clearOldData = (cutoffDate: Date): Promise<void> => {
     });
 };
 
-export const clearAccuracyData = (): Promise<void> => {
+export const clearAccuracyData = async (): Promise<void> => {
+    await initDB();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction([ACCURACY_SCORES_STORE, PENDING_FORECASTS_STORE, ACTUAL_WEATHER_STORE, HISTORICAL_FORECASTS_STORE], 'readwrite');
+        if (!db) return reject(new Error("DB connection failed in clearAccuracyData"));
+        const tx = db.transaction([ACCURACY_SCORES_STORE, PENDING_FORECASTS_STORE, ACTUAL_WEATHER_STORE, HISTORICAL_FORECASTS_STORE, APP_STATE_STORE], 'readwrite');
         tx.objectStore(ACCURACY_SCORES_STORE).clear();
         tx.objectStore(PENDING_FORECASTS_STORE).clear();
         tx.objectStore(ACTUAL_WEATHER_STORE).clear();
         tx.objectStore(HISTORICAL_FORECASTS_STORE).clear();
+        tx.objectStore(APP_STATE_STORE).clear();
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(createDbError(tx.error, 'clearAccuracyData transaction'));
     });
 };
 
-export const getLease = (id: string): Promise<any> => {
+export const getLease = async (id: string): Promise<any> => {
+    await initDB();
     return new Promise((resolve, reject) => {
-        if (!db) return reject(new Error("Database not initialized for getLease"));
+        if (!db) return reject(new Error("DB connection failed in getLease"));
         const transaction = db.transaction(LEADER_LEASE_STORE, 'readonly');
         const request = transaction.objectStore(LEADER_LEASE_STORE).get(id);
         
@@ -338,12 +389,40 @@ export const getLease = (id: string): Promise<any> => {
     });
 };
 
-export const setLease = (lease: any): Promise<void> => {
+export const setLease = async (lease: any): Promise<void> => {
+    await initDB();
     return new Promise((resolve, reject) => {
-        if (!db) return reject(new Error("Database not initialized for setLease"));
+        if (!db) return reject(new Error("DB connection failed in setLease"));
         const tx = db.transaction(LEADER_LEASE_STORE, 'readwrite');
         tx.objectStore(LEADER_LEASE_STORE).put(lease);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(createDbError(tx.error, 'setLease transaction'));
+    });
+};
+
+export const getState = async (key: string): Promise<string | undefined> => {
+    await initDB();
+    return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in getState"));
+        const transaction = db.transaction(APP_STATE_STORE, 'readonly');
+        const request = transaction.objectStore(APP_STATE_STORE).get(key);
+        
+        transaction.onerror = () => reject(createDbError(transaction.error, 'getState transaction'));
+        request.onsuccess = e => {
+            const result = (e.target as IDBRequest).result;
+            resolve(result ? result.value : undefined);
+        };
+        request.onerror = () => reject(createDbError(request.error, 'getState request'));
+    });
+};
+
+export const setState = async (key: string, value: any): Promise<void> => {
+    await initDB();
+    return new Promise((resolve, reject) => {
+        if (!db) return reject(new Error("DB connection failed in setState"));
+        const tx = db.transaction(APP_STATE_STORE, 'readwrite');
+        tx.objectStore(APP_STATE_STORE).put({ key, value });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(createDbError(tx.error, 'setState transaction'));
     });
 };

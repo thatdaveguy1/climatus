@@ -1,4 +1,4 @@
-import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty } from './dbService';
+import { initDB, getDuePendingForecasts, addPendingForecasts, addActualWeather, getLatestActualWeatherTime, clearOldData, getActualsForLocationAndTimeRange, applyAccuracyUpdatesAndDelete, getLease, setLease, areAccuracyStoresEmpty, getState, setState } from './dbService';
 import { fetchPastWeather, fetchRawModelRunsForAccuracy } from './openMeteoService';
 import { ACCURACY_LOCATIONS, LAST_ACCURACY_CHECK_KEY, MODELS, TRACKABLE_METRICS, ACCURACY_FIRST_RUN_KEY, ACCURACY_MAX_FORECAST_HOURS, ACCURACY_STALE_FORECAST_HOURS } from '../constants';
 import { PendingForecast, AccuracyInterval, ActualWeatherRecord, HistoricalForecastRecord, OpenMeteoModelResponse } from '../types';
@@ -250,13 +250,13 @@ const fullUpdateCycle = async () => {
 
 const initialSetup = async () => {
     console.log("[Accuracy] Performing initial setup check...");
-    const firstRunTimestamp = localStorage.getItem(ACCURACY_FIRST_RUN_KEY);
+    const firstRunTimestamp = await getState(ACCURACY_FIRST_RUN_KEY);
     const storesAreEmpty = await areAccuracyStoresEmpty();
 
     if (!firstRunTimestamp || storesAreEmpty) {
         console.log("[Accuracy] First run detected or database is empty. Seeding data...");
         await fullUpdateCycle();
-        localStorage.setItem(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
+        await setState(ACCURACY_FIRST_RUN_KEY, Date.now().toString());
     } else {
         console.log("[Accuracy] Existing data found. Proceeding with normal hourly check.");
     }
@@ -278,13 +278,14 @@ export const checkAndRunHourlyUpdate = async () => {
         
         await initialSetup(); 
 
-        const lastCheck = localStorage.getItem(LAST_ACCURACY_CHECK_KEY);
+        const lastCheckStr = await getState(LAST_ACCURACY_CHECK_KEY);
         const now = Date.now();
         const oneHour = 3600 * 1000;
+        const lastCheck = lastCheckStr ? parseInt(lastCheckStr, 10) : 0;
 
-        if (!lastCheck || (now - parseInt(lastCheck, 10)) > oneHour) {
+        if (!lastCheck || (now - lastCheck) > oneHour) {
             await fullUpdateCycle();
-            localStorage.setItem(LAST_ACCURACY_CHECK_KEY, now.toString());
+            await setState(LAST_ACCURACY_CHECK_KEY, now.toString());
         } else {
             console.log('[Accuracy] Less than an hour since last full update. Skipping.');
         }
@@ -299,7 +300,7 @@ export const runFullAccuracyCycleNow = async () => {
     try {
         await initDB();
         await fullUpdateCycle();
-        localStorage.setItem(LAST_ACCURACY_CHECK_KEY, Date.now().toString());
+        await setState(LAST_ACCURACY_CHECK_KEY, Date.now().toString());
         console.log('[Accuracy] Manual update cycle completed successfully.');
     } catch (err) {
         console.error('[Accuracy] Manual full update cycle failed:', err);

@@ -41,10 +41,15 @@ const ForecastCard: React.FC<ForecastCardProps> = ({ modelName, data, activeView
             ? { weekday: 'short', hour: 'numeric', hour12: true, timeZone: userTimeZone }
             : { weekday: 'short', month: 'short', day: 'numeric', timeZone: userTimeZone };
           
+          // FIX: Correctly parse date-only or datetime strings by treating them as UTC.
+          const dateString = point.time.includes('T') ? point.time + 'Z' : point.time + 'T00:00:00Z';
+          const date = new Date(dateString);
+          const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', timeFormatOptions) : 'Invalid Date';
+
           return (
             <div key={point.time} className="text-sm">
               <p className="font-semibold text-gray-300">
-                {new Date(point.time + 'Z').toLocaleDateString('en-US', timeFormatOptions)}
+                {formattedDate}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1 text-gray-400">
                   {activeView === 'daily' ? (

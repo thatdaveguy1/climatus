@@ -7,18 +7,14 @@ interface AccuracyLeaderboardProps {
     scores: AccuracyScore[];
     selectedLocationId: number;
     selectedInterval: AccuracyInterval;
-    setSelectedInterval: (interval: AccuracyInterval) => void;
     selectedMetric: Metric;
-    isProcessing: boolean;
 }
 
 const AccuracyLeaderboard: React.FC<AccuracyLeaderboardProps> = ({
     scores,
     selectedLocationId,
     selectedInterval,
-    setSelectedInterval,
     selectedMetric,
-    isProcessing,
 }) => {
     const MIN_HOURS_MAP: Record<AccuracyInterval, number> = {
         '24h': 1,
@@ -80,31 +76,6 @@ const AccuracyLeaderboard: React.FC<AccuracyLeaderboardProps> = ({
 
     return (
         <div>
-            {/* Interval Tabs */}
-            <div className="flex justify-center mb-6 border-b border-white/10">
-                {(['24h', '48h', '5d'] as AccuracyInterval[]).map(interval => {
-                    const labelMap = { '24h': '24-Hour', '48h': '48-Hour', '5d': '5-Day' };
-                    return (
-                        <button
-                            key={interval}
-                            onClick={() => setSelectedInterval(interval)}
-                            disabled={isProcessing}
-                            className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ease-in-out relative disabled:text-gray-500 disabled:cursor-not-allowed
-                            ${selectedInterval === interval ? 'text-white' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            {labelMap[interval]}
-                            {selectedInterval === interval &&
-                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t-full"></span>
-                            }
-                        </button>
-                    )
-                })}
-            </div>
-            
-            <h3 className="text-xl font-bold text-center mb-4">
-                { { '24h': '24-Hour', '48h': '48-Hour', '5d': '5-Day' }[selectedInterval] } { selectedMetric.label } Forecast Accuracy
-            </h3>
-            
             <div className="overflow-x-auto">
                 <table className="w-full text-left table-auto">
                     <thead>

@@ -21,6 +21,9 @@ const AccuracyTracker: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [processingMessage, setProcessingMessage] = useState<string>('');
 
+    const primaryMetrics = useMemo(() => TRACKABLE_METRICS.filter(m => ['temperature_2m', 'rain', 'snowfall'].includes(m.key)), []);
+    const secondaryMetrics = useMemo(() => TRACKABLE_METRICS.filter(m => ['wind_speed_10m', 'wind_gusts_10m', 'cloud_cover', 'visibility'].includes(m.key)), []);
+
     const loadData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -91,8 +94,6 @@ const AccuracyTracker: React.FC = () => {
             setProcessingMessage('Clearing all accuracy data...');
             try {
                 await clearAccuracyData();
-                localStorage.removeItem(ACCURACY_FIRST_RUN_KEY);
-                localStorage.removeItem(LAST_ACCURACY_CHECK_KEY);
                 setScores([]);
                 
                 setProcessingMessage('Data cleared. Fetching initial forecasts...');
@@ -175,8 +176,8 @@ const AccuracyTracker: React.FC = () => {
             </div>
 
             {/* Metric Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-                {TRACKABLE_METRICS.map(metric => (
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
+                {primaryMetrics.map(metric => (
                     <button
                         key={metric.key}
                         onClick={() => setSelectedMetric(metric)}
@@ -191,10 +192,51 @@ const AccuracyTracker: React.FC = () => {
                     </button>
                 ))}
             </div>
-
-            <p className="text-center text-sm text-gray-400 mb-6 -mt-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+                {secondaryMetrics.map(metric => (
+                    <button
+                        key={metric.key}
+                        onClick={() => setSelectedMetric(metric)}
+                        disabled={isProcessing}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 border disabled:bg-gray-600 disabled:cursor-not-allowed ${
+                            selectedMetric.key === metric.key
+                            ? 'bg-blue-600 text-white shadow-md border-blue-500'
+                            : 'bg-gray-800/60 text-gray-300 hover:bg-gray-700/80 border-white/10'
+                        }`}
+                    >
+                        {metric.label}
+                    </button>
+                ))}
+            </div>
+            
+            <p className="text-center text-sm text-gray-400 mb-6">
                 Wind speed and gust errors are in knots; visibility errors are in statute miles.
             </p>
+
+            {/* Interval Tabs */}
+            <div className="flex justify-center mb-6 border-b border-white/10">
+                {(['24h', '48h', '5d'] as AccuracyInterval[]).map(interval => {
+                    const labelMap = { '24h': '24-Hour', '48h': '48-Hour', '5d': '5-Day' };
+                    return (
+                        <button
+                            key={interval}
+                            onClick={() => setSelectedInterval(interval)}
+                            disabled={isProcessing}
+                            className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ease-in-out relative disabled:text-gray-500 disabled:cursor-not-allowed
+                            ${selectedInterval === interval ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            {labelMap[interval]}
+                            {selectedInterval === interval &&
+                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t-full"></span>
+                            }
+                        </button>
+                    )
+                })}
+            </div>
+
+            <h3 className="text-xl font-bold text-center mb-4">
+                { { '24h': '24-Hour', '48h': '48-Hour', '5d': '5-Day' }[selectedInterval] } { selectedMetric.label } Forecast Accuracy
+            </h3>
             
             {showLowDataWarning && (
                 <div className="mb-6 p-4 bg-blue-900/50 border border-blue-700/50 rounded-lg text-sm text-blue-200 text-center">
@@ -206,9 +248,7 @@ const AccuracyTracker: React.FC = () => {
                 scores={scores}
                 selectedLocationId={selectedLocationId}
                 selectedInterval={selectedInterval}
-                setSelectedInterval={setSelectedInterval}
                 selectedMetric={selectedMetric}
-                isProcessing={isProcessing}
             />
 
             <div className="mt-12">

@@ -95,17 +95,23 @@ const HourlyForecastView: React.FC<HourlyForecastViewProps> = ({ data }) => {
                                 {timeLabel}
                             </span>
 
-                            <span className={`w-8 text-xl font-bold text-center ${getWindGustColor(hour.wind_gusts_10m ?? 0)}`}>
-                                {Math.round(hour.wind_gusts_10m ?? 0)}
-                            </span>
+                            <div className="flex flex-col items-center w-12 text-center">
+                                <span className={`text-xl font-bold ${getWindGustColor(hour.wind_gusts_10m ?? 0)}`}>
+                                    {Math.round(hour.wind_speed_10m ?? 0)}
+                                </span>
+                                <span className="text-xs text-gray-400">kts</span>
+                            </div>
 
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8">
                                     <WeatherIcon />
                                 </div>
-                                <span className="w-12 text-md text-cyan-300 font-mono text-left">
-                                    {totalPrecip.toFixed(2)}
-                                </span>
+                                <div className="flex flex-col items-start w-16">
+                                    <span className="text-md text-cyan-300 font-mono">
+                                        {totalPrecip.toFixed(2)}
+                                    </span>
+                                    <span className="text-xs text-gray-400 -mt-1">mm</span>
+                                </div>
                             </div>
 
                             <span className="w-10 text-lg text-white font-mono text-right">
